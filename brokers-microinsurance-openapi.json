@@ -1,0 +1,2155 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Impaqt API",
+    "version": "1.0",
+    "description": "Integration reference for third-party developers (March 2026).\n\nAuth: OAuth 2.0 client credentials. Send `Authorization: Basic <client_id+client_secret base64>` and `Content-Type: application/json`. With `on_behalf` scope also send `grant-id: <grant_id>` (UUID from the grants endpoint). With `self` scope do not send it.\n\nAll responses use a standard envelope (timeStamp, statusCode, httpStatus, message, data, requestId, success)."
+  },
+  "servers": [
+    {
+      "url": "https://{host}",
+      "description": "Insurer's host",
+      "variables": {
+        "host": {
+          "default": "api.example.com"
+        }
+      }
+    }
+  ],
+  "tags": [
+    {
+      "name": "Authentication"
+    },
+    {
+      "name": "Grants"
+    },
+    {
+      "name": "Products"
+    },
+    {
+      "name": "Quotes"
+    },
+    {
+      "name": "Customers"
+    },
+    {
+      "name": "Policies"
+    },
+    {
+      "name": "Claims"
+    }
+  ],
+  "security": [
+    {
+      "basicAuth": []
+    }
+  ],
+  "paths": {
+    "/oauth/token": {
+      "post": {
+        "tags": [
+          "Authentication"
+        ],
+        "operationId": "getAccessToken",
+        "summary": "Obtain access token",
+        "description": "Issues a bearer token via OAuth 2.0 client credentials. NOTE: the guide's heading for this endpoint is garbled; the path is taken from the Integration Flow table. The token response body is not documented in the guide; the fields below are standard OAuth 2.0 assumptions.",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "client_id",
+                  "client_secret",
+                  "scope"
+                ],
+                "properties": {
+                  "client_id": {
+                    "type": "string",
+                    "description": "Your issued client ID"
+                  },
+                  "client_secret": {
+                    "type": "string",
+                    "description": "Your issued client secret"
+                  },
+                  "scope": {
+                    "$ref": "#/components/schemas/Scope"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Token issued",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Envelope"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "access_token": {
+                              "type": "string"
+                            },
+                            "token_type": {
+                              "type": "string"
+                            },
+                            "expires_in": {
+                              "type": "integer"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid client credentials / token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Scope or grant not permitted for this client",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/IMPAQT-API-get-agents": {
+      "get": {
+        "tags": [
+          "Grants"
+        ],
+        "operationId": "listGrants",
+        "summary": "List allowed grants",
+        "description": "Returns grants available to the authenticated client for on_behalf usage. Supported only for on_behalf tokens; no grant header required. (Guide example path: GET /agents)",
+        "security": [
+          {
+            "basicAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Grants",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Envelope"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/Grant"
+                          }
+                        }
+                      }
+                    }
+                  ]
+                },
+                "example": {
+                  "data": [
+                    {
+                      "grant_id": "e37b84b6-7daf-4fc4-bf1e-711e3949e282",
+                      "scope": "on_behalf",
+                      "aggregator": {
+                        "vendorCode": "AGT001",
+                        "name": "Demo Aggregator",
+                        "vendorStatus": "active",
+                        "entityType": "company"
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid client credentials / token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Scope or grant not permitted for this client",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/IMPAQT-API-get-products": {
+      "get": {
+        "tags": [
+          "Products"
+        ],
+        "operationId": "listProducts",
+        "summary": "List products for a grant",
+        "description": "Returns products assigned to the active grant, including plans and benefit metadata. IMPORTANT: each product's `id` is the UUID of the grant-product assignment record; use it when creating quotes. (Guide example path: GET /products)",
+        "security": [
+          {
+            "basicAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/GrantId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Products",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Envelope"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "products": {
+                              "type": "array",
+                              "items": {
+                                "$ref": "#/components/schemas/Product"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                },
+                "example": {
+                  "data": {
+                    "products": [
+                      {
+                        "id": "92144333-f7ad-48d3-978d-4300a465903a",
+                        "product_name": "GROUP FUNERAL EXPENSE COVER",
+                        "product_code": "GFE003",
+                        "client_type": "group",
+                        "product_type": "plan-based",
+                        "can_mix_plans": false,
+                        "plans": [
+                          {
+                            "id": 236,
+                            "plan_name": "Option 1",
+                            "base_premium": 3000,
+                            "duration_months_of_cover": 12
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid client credentials / token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Scope or grant not permitted for this client",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/IMPAQT-API-create-quote/{id}": {
+      "post": {
+        "tags": [
+          "Quotes"
+        ],
+        "operationId": "createQuote",
+        "summary": "Create quote for a grant product",
+        "description": "Creates and stores a quote for the specified grant-product UUID. `id` must be products[].id from the products endpoint. (Guide heading shows /IMPAQT-API-create-quote and the example path POST /products/{id}/quote; `{id}` placement is inferred.)\n\nValidation: plans must be non-empty; plan_id integer; principal >= 1; counts non-negative integers; duplicate plan_id rejected; if product does not allow mixed plans only one plan may be submitted; dependant counts must not exceed configured maximums unless extra dependants are allowed.",
+        "security": [
+          {
+            "basicAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/GrantId"
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Grant-product UUID (products[].id)",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QuoteRequest"
+              },
+              "example": {
+                "plans": [
+                  {
+                    "plan_id": 236,
+                    "principal": 20,
+                    "spouse": 2,
+                    "children": 4,
+                    "parents": 2,
+                    "parent_in_law": 0
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Quote created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Envelope"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/Quote"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "example": {
+                  "data": {
+                    "id": "0bdab5d7-5d6b-46ab-8149-55d46a6de6a2",
+                    "quote_reference": "TPQ-1711266758000-A1B2C3",
+                    "totals": {
+                      "total_premium": 61466.2,
+                      "total_base_premium": 60000
+                    },
+                    "currency": "KES"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid client credentials / token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Scope or grant not permitted for this client",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/IMPAQT-API-list-policies": {
+      "get": {
+        "tags": [
+          "Policies"
+        ],
+        "operationId": "listPolicies",
+        "summary": "List / search policies",
+        "description": "Returns a paginated list of policies created under this grant, filtered within the authenticated aggregator context. The guide documents this path twice (sections 5 and 10) with different filters; they are merged here. `no_of_lives` counts principal members only. An unknown customer_id returns an empty list, not an error.",
+        "security": [
+          {
+            "basicAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/GrantId"
+          },
+          {
+            "name": "customer_id",
+            "in": "query",
+            "required": false,
+            "description": "Filter by customer ID (ThirdPartyCustomer UUID)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "phone",
+            "in": "query",
+            "required": false,
+            "description": "Filter by phone number",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "email",
+            "in": "query",
+            "required": false,
+            "description": "Filter by email address",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "kra_pin",
+            "in": "query",
+            "required": false,
+            "description": "Filter by KRA PIN",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id_passport_reg_no",
+            "in": "query",
+            "required": false,
+            "description": "Filter by ID / passport / registration number",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "description": "e.g. Active, Lapsed, Cancelled",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "description": "Page number",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Records per page",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Policies",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Envelope"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "additionalProperties": true,
+                          "description": "Paginated policy list (schema not specified in guide)"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid client credentials / token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Scope or grant not permitted for this client",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/IMPAQT-API-get-policy": {
+      "get": {
+        "tags": [
+          "Policies"
+        ],
+        "operationId": "getPolicy",
+        "summary": "Get policy details / benefits",
+        "description": "Returns policy benefit names (section 6) and full details for a single policy including invoices, members, plans (with full pricing breakdown) and claims (section 11). The guide documents this path twice; merged here.",
+        "security": [
+          {
+            "basicAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/GrantId"
+          },
+          {
+            "name": "policy_number",
+            "in": "query",
+            "required": false,
+            "description": "Filter by policy number",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "policy_id",
+            "in": "query",
+            "required": false,
+            "description": "Filter by policy ID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "description": "Page number",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Records per page",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Policy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Envelope"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "additionalProperties": true,
+                          "description": "Policy detail (schema not specified in guide)"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Policy does not exist within this grant's scope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid client credentials / token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Scope or grant not permitted for this client",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/IMPAQT-API-register-customer": {
+      "post": {
+        "tags": [
+          "Customers"
+        ],
+        "operationId": "registerCustomer",
+        "summary": "Onboard a customer",
+        "description": "Registers a customer and links them to the authenticated third-party client. Returns a UUID for future reference. If the customer already exists they are linked and the same UUID is returned (200). Accepted file types: JPEG, PNG, PDF only.",
+        "security": [
+          {
+            "basicAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/GrantId"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/IndividualCustomer"
+                  },
+                  {
+                    "$ref": "#/components/schemas/EntityCustomer"
+                  }
+                ],
+                "discriminator": {
+                  "propertyName": "customer_type",
+                  "mapping": {
+                    "individual": "#/components/schemas/IndividualCustomer",
+                    "entity": "#/components/schemas/EntityCustomer"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "New customer onboarded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Envelope"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/CustomerRef"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Customer already onboarded; linked to client (same UUID)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Envelope"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/CustomerRef"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid client credentials / token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Scope or grant not permitted for this client",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/IMPAQT-API-convert-quote-to-policy": {
+      "post": {
+        "tags": [
+          "Policies"
+        ],
+        "operationId": "convertQuoteToPolicy",
+        "summary": "Convert quote to policy",
+        "description": "Converts a previously created third-party quote into a policy and creates the first invoice. Enforces strict validation against the quotation payload. policy_end_date is auto-derived (policy_start_date + plan duration_months). (Guide example path: POST /policies/from-quote)",
+        "security": [
+          {
+            "basicAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/GrantId"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConvertQuoteRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Policy created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Envelope"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/PolicyCreated"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "example": {
+                  "data": {
+                    "quote_reference": "TPQ-1711266758000-A1B2C3",
+                    "policy_number": "M/CICL/2026/04/0001",
+                    "invoice_number": "CIC/04/2026/INV-0001",
+                    "customer_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+                    "total_members": 2,
+                    "total_premium": 61466.2,
+                    "status": "pending_payment"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid client credentials / token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Scope or grant not permitted for this client",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/IMPAQT-API-get-invoices": {
+      "get": {
+        "tags": [
+          "Policies"
+        ],
+        "operationId": "listPolicyInvoices",
+        "summary": "List tracked invoices for a policy",
+        "description": "Returns invoice tracking records for the given policy number, scoped to the authenticated client and grant. Supports policies with multiple invoices. (Guide example path: GET /policies/{policyNumber}/invoices; passed here as a query parameter because the gateway heading carries no path variable.)",
+        "security": [
+          {
+            "basicAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/GrantId"
+          },
+          {
+            "name": "policy_number",
+            "in": "query",
+            "required": true,
+            "description": "Policy number",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Invoices",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Envelope"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "additionalProperties": true
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid client credentials / token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Scope or grant not permitted for this client",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/IMPAQT-API-get-claims": {
+      "get": {
+        "tags": [
+          "Claims"
+        ],
+        "operationId": "listClaimEvents",
+        "summary": "List claim events",
+        "description": "Returns available loss events and their natures of loss, including required document types per nature. (Guide example path: GET /claims/events)",
+        "security": [
+          {
+            "basicAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/GrantId"
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "description": "Case-insensitive search on loss event name (alias: searchTerm)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "searchTerm",
+            "in": "query",
+            "required": false,
+            "description": "Alias of `search`",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "description": "Page number",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Records per page",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Loss events",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Envelope"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "events": {
+                              "type": "array",
+                              "items": {
+                                "$ref": "#/components/schemas/LossEvent"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                },
+                "example": {
+                  "data": {
+                    "events": [
+                      {
+                        "id": 4,
+                        "value": "Death",
+                        "natures_of_loss": [
+                          {
+                            "id": 12,
+                            "value": "Natural Death",
+                            "required_documents": [
+                              {
+                                "id": 31,
+                                "value": "Death Certificate",
+                                "is_mandatory": true
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid client credentials / token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Scope or grant not permitted for this client",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/IMPAQT-API-post-claim": {
+      "post": {
+        "tags": [
+          "Claims"
+        ],
+        "operationId": "submitClaim",
+        "summary": "Submit claim",
+        "description": "Creates a claim for a tracked third-party policy and records claimed benefits. Validates policy ownership, risk membership, nature of loss and required documents. (Guide example path: POST /claims)",
+        "security": [
+          {
+            "basicAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/GrantId"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClaimRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Claim created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Envelope"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/ClaimCreated"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "example": {
+                  "data": {
+                    "id": "0c38cb41-8589-4505-9e2d-90b14c401ea0",
+                    "claim_no": "2026/03/GFE003/000001",
+                    "status": "RECEIVED",
+                    "required_documents": [
+                      {
+                        "document_type_id": 201,
+                        "document_name": "Death Certificate"
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid client credentials / token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Scope or grant not permitted for this client",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/IMPAQT-API-submit-claim-document/{claimId}/documents": {
+      "post": {
+        "tags": [
+          "Claims"
+        ],
+        "operationId": "uploadClaimDocuments",
+        "summary": "Upload claim documents",
+        "description": "Uploads documents for a previously created claim. Each multipart file key must be the numeric document_type_id (e.g. `201=<file>`). Rules: claim must belong to the authenticated grant; each document_type_id must be valid for the claim's nature of loss; all mandatory documents must be present (existing + current upload); allowed types JPEG, PNG, WEBP, PDF. (Guide example path: POST /claims/{claimId}/documents)",
+        "security": [
+          {
+            "basicAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/GrantId"
+          },
+          {
+            "name": "claimId",
+            "in": "path",
+            "required": true,
+            "description": "Claim UUID returned by the submit-claim endpoint",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "description": "Property names are numeric document_type_id values",
+                "additionalProperties": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Documents uploaded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Envelope"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Claim not found within this grant's scope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid client credentials / token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Scope or grant not permitted for this client",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/claims/{claimId}": {
+      "get": {
+        "tags": [
+          "Claims"
+        ],
+        "operationId": "getClaim",
+        "summary": "Get claim by ID",
+        "description": "Fetches a claim using the claim UUID returned by the submit-claim endpoint.",
+        "security": [
+          {
+            "basicAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/GrantId"
+          },
+          {
+            "name": "claimId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Claim",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Envelope"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "additionalProperties": true
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Claim does not exist within this grant's scope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid client credentials / token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Scope or grant not permitted for this client",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "basicAuth": {
+        "type": "http",
+        "scheme": "basic",
+        "description": "Base64 of client_id:client_secret as documented in the guide"
+      }
+    },
+    "parameters": {
+      "GrantId": {
+        "name": "grant-id",
+        "in": "header",
+        "required": false,
+        "description": "Required for on_behalf scope; must be the grant_id UUID from the grants endpoint. Omit for self scope.",
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        }
+      }
+    },
+    "schemas": {
+      "Scope": {
+        "type": "string",
+        "enum": [
+          "self",
+          "on_behalf"
+        ],
+        "description": "self: client acts only for its own assigned agent (no grant header). on_behalf (preferred): client acts for one of several grants (grant-id header required)."
+      },
+      "Envelope": {
+        "type": "object",
+        "properties": {
+          "timeStamp": {
+            "type": "string",
+            "example": "3/24/2026, 7:10:56 AM"
+          },
+          "statusCode": {
+            "type": "integer",
+            "example": 200
+          },
+          "httpStatus": {
+            "type": "string",
+            "example": "OK"
+          },
+          "message": {
+            "type": "string",
+            "example": "Grant products fetched successfully"
+          },
+          "data": {},
+          "requestId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "success": {
+            "type": "boolean"
+          }
+        }
+      },
+      "Error": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Envelope"
+          }
+        ],
+        "description": "Error envelope. Common messages: Invalid client credentials; Client is not allowed to use scope on_behalf; Grant header is required for on_behalf scope; Client is not allowed to use the supplied grant id; Grant product was not found for the supplied grant; plans must be a non-empty array; plans[0].plan_id must be a valid integer; plans[0].principal must be at least 1; One or more selected plans are invalid for this product; This product does not allow mixing multiple plans in one quote; Duplicate principal_national_id values found: ...; Quoted count mismatch for plan ...; policy_number is not accessible for this grant; nature_of_loss_id is invalid for the supplied loss_event_id; Missing required documents for selected nature_of_loss: ..."
+      },
+      "Aggregator": {
+        "type": "object",
+        "properties": {
+          "vendorCode": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "vendorStatus": {
+            "type": "string"
+          },
+          "entityType": {
+            "type": "string"
+          }
+        }
+      },
+      "Grant": {
+        "type": "object",
+        "properties": {
+          "grant_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "scope": {
+            "$ref": "#/components/schemas/Scope"
+          },
+          "aggregator": {
+            "$ref": "#/components/schemas/Aggregator"
+          },
+          "products": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": true
+            }
+          }
+        }
+      },
+      "Plan": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "plan_name": {
+            "type": "string"
+          },
+          "base_premium": {
+            "type": "number"
+          },
+          "duration_months_of_cover": {
+            "type": "integer"
+          }
+        }
+      },
+      "Product": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Grant-product assignment UUID; use when creating quotes"
+          },
+          "product_name": {
+            "type": "string"
+          },
+          "product_code": {
+            "type": "string"
+          },
+          "client_type": {
+            "type": "string",
+            "example": "group"
+          },
+          "product_type": {
+            "type": "string",
+            "example": "plan-based"
+          },
+          "can_mix_plans": {
+            "type": "boolean"
+          },
+          "plans": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Plan"
+            }
+          }
+        }
+      },
+      "QuotePlanItem": {
+        "type": "object",
+        "required": [
+          "plan_id",
+          "principal"
+        ],
+        "properties": {
+          "plan_id": {
+            "type": "integer",
+            "description": "Plan ID from the products endpoint"
+          },
+          "principal": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "spouse": {
+            "type": "integer",
+            "minimum": 0,
+            "default": 0
+          },
+          "children": {
+            "type": "integer",
+            "minimum": 0,
+            "default": 0
+          },
+          "parents": {
+            "type": "integer",
+            "minimum": 0,
+            "default": 0
+          },
+          "parent_in_law": {
+            "type": "integer",
+            "minimum": 0,
+            "default": 0
+          }
+        }
+      },
+      "QuoteRequest": {
+        "type": "object",
+        "required": [
+          "plans"
+        ],
+        "properties": {
+          "plans": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "$ref": "#/components/schemas/QuotePlanItem"
+            }
+          }
+        }
+      },
+      "Quote": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "quote_reference": {
+            "type": "string"
+          },
+          "totals": {
+            "type": "object",
+            "properties": {
+              "total_premium": {
+                "type": "number"
+              },
+              "total_base_premium": {
+                "type": "number"
+              }
+            }
+          },
+          "currency": {
+            "type": "string",
+            "example": "KES"
+          }
+        }
+      },
+      "IndividualCustomer": {
+        "type": "object",
+        "required": [
+          "customer_type",
+          "first_name",
+          "surname",
+          "id_passport_reg_no",
+          "identification_type",
+          "nationality",
+          "occupation_type",
+          "phone",
+          "email",
+          "date_of_birth",
+          "idFront",
+          "idBack"
+        ],
+        "properties": {
+          "customer_type": {
+            "type": "string",
+            "enum": [
+              "individual"
+            ]
+          },
+          "first_name": {
+            "type": "string"
+          },
+          "surname": {
+            "type": "string"
+          },
+          "id_passport_reg_no": {
+            "type": "string",
+            "description": "National ID or passport number"
+          },
+          "identification_type": {
+            "type": "string",
+            "example": "national_id"
+          },
+          "nationality": {
+            "type": "string",
+            "example": "Kenyan"
+          },
+          "occupation_type": {
+            "type": "string",
+            "example": "employed"
+          },
+          "phone": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "date_of_birth": {
+            "type": "string",
+            "format": "date"
+          },
+          "idFront": {
+            "type": "string",
+            "format": "binary",
+            "description": "Front of national ID or passport (JPEG/PNG/PDF)"
+          },
+          "idBack": {
+            "type": "string",
+            "format": "binary",
+            "description": "Back of national ID (JPEG/PNG/PDF)"
+          }
+        }
+      },
+      "EntityCustomer": {
+        "type": "object",
+        "required": [
+          "customer_type",
+          "company_name",
+          "registration_number",
+          "identification_type",
+          "country_of_registration",
+          "date_of_incorporation",
+          "occupation_type",
+          "phone",
+          "email",
+          "contact_person_name",
+          "contact_person_phone",
+          "contact_person_email",
+          "contact_person_position",
+          "kra_pin_certificate",
+          "certificate_of_incorporation",
+          "contact_id_front"
+        ],
+        "properties": {
+          "customer_type": {
+            "type": "string",
+            "enum": [
+              "entity"
+            ]
+          },
+          "company_name": {
+            "type": "string"
+          },
+          "registration_number": {
+            "type": "string"
+          },
+          "identification_type": {
+            "type": "string",
+            "example": "company_registration"
+          },
+          "country_of_registration": {
+            "type": "string"
+          },
+          "date_of_incorporation": {
+            "type": "string",
+            "format": "date"
+          },
+          "occupation_type": {
+            "type": "string",
+            "description": "Nature of business activity"
+          },
+          "phone": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "contact_person_name": {
+            "type": "string"
+          },
+          "contact_person_phone": {
+            "type": "string"
+          },
+          "contact_person_email": {
+            "type": "string",
+            "format": "email"
+          },
+          "contact_person_position": {
+            "type": "string"
+          },
+          "kra_pin_certificate": {
+            "type": "string",
+            "format": "binary"
+          },
+          "certificate_of_incorporation": {
+            "type": "string",
+            "format": "binary"
+          },
+          "contact_id_front": {
+            "type": "string",
+            "format": "binary"
+          }
+        }
+      },
+      "CustomerRef": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Third-party customer UUID"
+          }
+        }
+      },
+      "Dependant": {
+        "type": "object",
+        "required": [
+          "national_id",
+          "f_name",
+          "l_name",
+          "type"
+        ],
+        "properties": {
+          "national_id": {
+            "type": "string",
+            "description": "Dependant ID (birth certificate number for minors)"
+          },
+          "f_name": {
+            "type": "string"
+          },
+          "l_name": {
+            "type": "string"
+          },
+          "m_name": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "spouse",
+              "children",
+              "parents",
+              "parent_in_law"
+            ]
+          },
+          "dob": {
+            "type": "string",
+            "format": "date"
+          }
+        }
+      },
+      "Risk": {
+        "type": "object",
+        "required": [
+          "principal_national_id",
+          "principal_f_name",
+          "principal_l_name"
+        ],
+        "properties": {
+          "principal_national_id": {
+            "type": "string",
+            "description": "Principal ID/Passport; must be unique across all risks"
+          },
+          "principal_f_name": {
+            "type": "string"
+          },
+          "principal_l_name": {
+            "type": "string"
+          },
+          "principal_m_name": {
+            "type": "string"
+          },
+          "principal_dob": {
+            "type": "string",
+            "format": "date"
+          },
+          "plan_id": {
+            "type": "integer",
+            "description": "Required when the quote contains multiple plans"
+          },
+          "dependants": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Dependant"
+            }
+          }
+        }
+      },
+      "ConvertQuoteRequest": {
+        "type": "object",
+        "required": [
+          "quote_reference",
+          "customer_id",
+          "policy_start_date",
+          "risks"
+        ],
+        "properties": {
+          "quote_reference": {
+            "type": "string",
+            "description": "Quote reference from the create-quote endpoint"
+          },
+          "customer_id": {
+            "type": "string",
+            "description": "Third-party customer UUID from the register-customer endpoint, or internal numeric ID"
+          },
+          "policy_start_date": {
+            "type": "string",
+            "format": "date"
+          },
+          "risks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Risk"
+            }
+          }
+        }
+      },
+      "PolicyCreated": {
+        "type": "object",
+        "properties": {
+          "quote_reference": {
+            "type": "string"
+          },
+          "policy_number": {
+            "type": "string"
+          },
+          "invoice_number": {
+            "type": "string"
+          },
+          "customer_id": {
+            "type": "string"
+          },
+          "total_members": {
+            "type": "integer"
+          },
+          "total_premium": {
+            "type": "number"
+          },
+          "status": {
+            "type": "string",
+            "example": "pending_payment"
+          }
+        }
+      },
+      "LossEvent": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "value": {
+            "type": "string"
+          },
+          "natures_of_loss": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "integer"
+                },
+                "value": {
+                  "type": "string"
+                },
+                "required_documents": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "integer"
+                      },
+                      "value": {
+                        "type": "string"
+                      },
+                      "is_mandatory": {
+                        "type": "boolean"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "ClaimRequest": {
+        "type": "object",
+        "required": [
+          "policy_number",
+          "risk_id",
+          "date_of_loss",
+          "place_of_loss",
+          "loss_event_id",
+          "nature_of_loss_id",
+          "cause_of_loss",
+          "loss_descriptions",
+          "benefits_claimed"
+        ],
+        "properties": {
+          "policy_number": {
+            "type": "string"
+          },
+          "risk_id": {
+            "type": "integer",
+            "description": "policy_risks.risk_id of the claimant"
+          },
+          "date_of_loss": {
+            "type": "string",
+            "description": "YYYY-MM-DD or ISO datetime"
+          },
+          "place_of_loss": {
+            "type": "string"
+          },
+          "loss_event_id": {
+            "type": "integer"
+          },
+          "nature_of_loss_id": {
+            "type": "integer",
+            "description": "Must belong to the selected loss event"
+          },
+          "cause_of_loss": {
+            "type": "string"
+          },
+          "loss_descriptions": {
+            "type": "string"
+          },
+          "benefits_claimed": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "required": [
+                "benefit_id",
+                "amount"
+              ],
+              "properties": {
+                "benefit_id": {
+                  "type": "integer"
+                },
+                "amount": {
+                  "type": "number",
+                  "exclusiveMinimum": true,
+                  "minimum": 0
+                }
+              }
+            }
+          },
+          "created_by": {
+            "type": "integer",
+            "description": "Internal user id override (optional)"
+          }
+        }
+      },
+      "ClaimCreated": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "claim_no": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "example": "RECEIVED"
+          },
+          "required_documents": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "document_type_id": {
+                  "type": "integer"
+                },
+                "document_name": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
